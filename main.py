@@ -6,21 +6,19 @@ from predictor import CardPredictor
 from yaml_manager import init_database
 from card_counter import CardCounter
 from aiohttp import web
-import threading
 
 load_dotenv()
 
-# ---------- CONFIG ENV ----------
+# ---------- CONFIG ----------
 API_ID   = int(os.getenv("API_ID") or 0)
 API_HASH = os.getenv("API_HASH") or ""
 BOT_TOKEN= os.getenv("BOT_TOKEN") or ""
 ADMIN_ID = int(os.getenv("ADMIN_ID") or 0)
 PORT     = int(os.getenv("PORT") or 10000)
-DISPLAY_CHANNEL = int(os.getenv("DISPLAY_CHANNEL") or "0")
 
 # ---------- GLOBALS ----------
 detected_stat_channel  = None
-detected_display_channel = DISPLAY_CHANNEL
+detected_display_channel = int(os.getenv("DISPLAY_CHANNEL") or 0)
 CONFIG_FILE   = "bot_config.json"
 INTERVAL_FILE = "interval.json"
 AUTO_BILAN_MIN = 30
@@ -38,7 +36,7 @@ def load_config():
         with open(CONFIG_FILE) as f:
             c = json.load(f)
             detected_stat_channel  = c.get("stat_channel")
-            detected_display_channel = c.get("display_channel", DISPLAY_CHANNEL)
+            detected_display_channel = c.get("display_channel", detected_display_channel)
 
 def save_config():
     with open(CONFIG_FILE, "w") as f:
@@ -124,12 +122,11 @@ async def reset(e):
 @client.on(events.NewMessage(pattern="/deploy"))
 async def deploy(e):
     if e.sender_id != ADMIN_ID: return
-    import zipfile, tempfile, shutil
+    import zipfile
     zip_name = "render_deploy.zip"
     with zipfile.ZipFile(zip_name, "w", zipfile.ZIP_DEFLATED) as z:
-        for f in ["main.py", "predictor.py", "yaml_manager.py", "card_counter.py", "requirements.txt", ".gitignore", "README.md"]:
+        for f in ["main.py", "predictor.py", "yaml_manager.py", "card_counter.py", "requirements.txt", ".gitignore"]:
             if os.path.exists(f): z.write(f)
-        z.writestr(".env.example", open(".env.example").read() if os.path.exists(".env.example") else "")
     await e.respond("📦 Package Render créé !")
     await client.send_file(e.chat_id, zip_name, caption="🚀 Prêt pour Render")
 
@@ -167,4 +164,6 @@ async def main():
     await client.run_until_disconnected()
 
 if __name__ == "__main__":
+    import asyncio
     asyncio.run(main())
+              

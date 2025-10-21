@@ -35,4 +35,4 @@ class CardCounter:
             lines.append(f"{s} : {self._TOTAL[s]}  ({pct:.1f} %)")
         self._TOTAL = {s: 0 for s in ("♠️", "♥️", "♦️", "♣️")}
         return "\n".join(lines)
-  
+                  

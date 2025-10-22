@@ -14,7 +14,7 @@ API_ID   = int(os.getenv("API_ID") or 0)
 API_HASH = os.getenv("API_HASH") or ""
 BOT_TOKEN= os.getenv("BOT_TOKEN") or ""
 ADMIN_ID = int(os.getenv("ADMIN_ID") or 0)
-PORT     = 5000
+PORT     = 10000
 
 # ---------- GLOBALS ----------
 detected_stat_channel  = None
@@ -148,7 +148,7 @@ async def dep_render(e):
         with zipfile.ZipFile(zip_name, "w", zipfile.ZIP_DEFLATED) as z:
             # main.py - Version modifiée avec PORT=10000 pour Render.com
             main_render_content = open("main.py", "r", encoding="utf-8").read()
-            # Remplacer PORT = 5000 par PORT = int(os.getenv("PORT", 10000))
+            # Remplacer PORT = 10000 par PORT = int(os.getenv("PORT", 10000))
             main_render_content = main_render_content.replace(
                 "PORT     = 5000",
                 "PORT     = int(os.getenv('PORT', 10000))"

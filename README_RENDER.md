@@ -1,4 +1,9 @@
-# Package de2000 - Déploiement Render.com
+# Package render10k - Déploiement Render.com (Port 10000)
+
+## ⚠️ IMPORTANT - Version Python
+**Ce bot nécessite Python 3.11.10** pour compatibilité avec Telethon.
+- ❌ Python 3.13+ causera des erreurs asyncio
+- ✅ Python 3.11.10 est préconfiguré dans runtime.txt
 
 ## 🚀 Instructions de déploiement sur Render.com:
 
@@ -31,7 +36,7 @@
    - Le déploiement démarre automatiquement
    - Vérifier les logs pour confirmer la connexion
 
-## 📋 Caractéristiques de2000:
+## 📋 Caractéristiques render10k:
 ✅ **Port 10000**: Configuration Render.com optimisée
 ✅ **Base YAML**: Stockage sans PostgreSQL
 ✅ **Gestion file d'attente**: Messages ⏰ → ✅/🔰
@@ -57,6 +62,8 @@
 - **yaml_manager.py**: Gestion données YAML
 - **scheduler.py**: Planification automatique
 - **render.yaml**: Configuration déploiement Render.com
+- **runtime.txt**: Python 3.11.10 (OBLIGATOIRE)
+- **requirements.txt**: Dépendances testées et compatibles
 
 ## 🌐 Endpoints:
 - `GET /health`: Health check (retourne "Bot OK")
@@ -84,10 +91,21 @@
 - Port 10000 OBLIGATOIRE pour Render.com
 - Variables d'environnement via dashboard Render.com
 
+## 🔧 Résolution des problèmes courants:
+
+### Erreur "File .../asyncio/runners.py"
+- ❌ Cause: Python 3.13 incompatible avec Telethon
+- ✅ Solution: runtime.txt contient python-3.11.10
+
+### Build Failed sur Render.com
+- Vérifier que runtime.txt existe et contient python-3.11.10
+- Vérifier que render.yaml spécifie runtime: python-3.11.10
+- S'assurer que toutes les variables d'environnement sont définies
+
 ## 🚀 Déploiement rapide:
 ```bash
-# 1. Décompresser de2000.zip
-unzip de2000.zip
+# 1. Décompresser render10k.zip
+unzip render10k.zip
 
 # 2. Upload sur Render.com ou GitHub
 git init
@@ -104,4 +122,5 @@ git push origin main
 - Health check automatique: `https://your-app.onrender.com/health`
 - Console output détaillé avec timestamps
 
-🎯 Package de2000 prêt pour déploiement Render.com avec port 10000!
+🎯 Package render10k prêt pour déploiement Render.com!
+✅ Python 3.11.10 + Port 10000 + Configuration complète

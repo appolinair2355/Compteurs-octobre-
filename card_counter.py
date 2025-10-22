@@ -12,6 +12,7 @@ class CardCounter:
     def normalize(self, s: str) -> str:
         return s if s.endswith("️") else s + "️"
 
+    # ---- comptage : 1 par SYMBOLE (sans doublon) ----
     def count_symbols(self, group: str) -> Dict[str, int]:
         counts = {s: 0 for s in ("♠️", "♥️", "♦️", "♣️")}
         for sym in self.SYMBOLS:
@@ -41,4 +42,4 @@ class CardCounter:
         msg = self.build_report().replace("📈 Compteur instantané", "📊 Bilan cumulé (cartes)")
         self._TOTAL = {s: 0 for s in ("♠️", "♥️", "♦️", "♣️")}
         return msg
-            
+        

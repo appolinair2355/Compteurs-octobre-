@@ -57,7 +57,7 @@ async def auto_bilan_loop():
     while True:
         await asyncio.sleep(AUTO_BILAN_MIN * 60)
         if detected_display_channel:
-            msg = card_counter.report_and_reset()
+            msg = card_counter.report_and_reset()  # envoie + reset
             await client.send_message(detected_display_channel, msg)
 
 def restart_auto_bilan():
@@ -141,7 +141,11 @@ async def handle(e):
         # ===== ENVOI INSTANTANÉ (sans reset) =====
         instant = card_counter.build_report()
         if detected_display_channel:
-            await client.send_message(detected_display_channel, instant)
+            try:
+                await client.send_message(detected_display_channel, instant)
+                print(f"📈 Instantané envoyé : {instant}")
+            except Exception as ex:
+                print(f"❌ Erreur envoi instantané : {ex}")
 
 # ---------- WEB SERVER ----------
 async def health(request): return web.Response(text="Bot OK")

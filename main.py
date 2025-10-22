@@ -1,8 +1,4 @@
-import os
-import asyncio
-import json
-import re
-import time
+import os, asyncio, json, re, time
 from datetime import datetime
 from telethon import TelegramClient, events
 from dotenv import load_dotenv
@@ -18,7 +14,7 @@ API_ID   = int(os.getenv("API_ID") or 0)
 API_HASH = os.getenv("API_HASH") or ""
 BOT_TOKEN= os.getenv("BOT_TOKEN") or ""
 ADMIN_ID = int(os.getenv("ADMIN_ID") or 0)
-PORT     = int(os.getenv("PORT", 10000))
+PORT     = 5000
 
 # ---------- GLOBALS ----------
 detected_stat_channel  = None
@@ -28,13 +24,13 @@ INTERVAL_FILE = "interval.json"
 AUTO_BILAN_MIN = 30
 AUTO_TASK      = None
 
-pending_messages = {}          # {message_id: message_text}
+# File d'attente pour messages en attente
+pending_messages = {}  # {message_id: message_text}
+
 database = init_database()
 predictor    = CardPredictor()
 card_counter = CardCounter()
-
-# Le client sera créé plus tard
-client: TelegramClient | None = None
+client       = TelegramClient(f"bot_session_{int(time.time())}", API_ID, API_HASH)
 
 # ---------- CONFIG TOOLS ----------
 def load_config():
@@ -64,7 +60,7 @@ async def auto_bilan_loop():
     while True:
         await asyncio.sleep(AUTO_BILAN_MIN * 60)
         if detected_display_channel:
-            msg = card_counter.report_and_reset()
+            msg = card_counter.report_and_reset()  # envoie + reset
             await client.send_message(detected_display_channel, msg)
 
 def restart_auto_bilan():
@@ -96,6 +92,7 @@ async def set_display(e):
     if e.sender_id != ADMIN_ID or e.is_group: return
     global detected_display_channel
     channel_id = int(e.pattern_match.group(1))
+    # Ajouter -100 si manquant pour les canaux Telegram
     if channel_id > 0 and channel_id > 1000000000:
         channel_id = -1000000000000 - channel_id
     detected_display_channel = channel_id
@@ -144,39 +141,228 @@ async def deploy(e):
 async def dep_render(e):
     if e.sender_id != ADMIN_ID: return
     import zipfile
-    zip_name = "de2000.zip"
+    
+    zip_name = "render10k.zip"
+    
     try:
         with zipfile.ZipFile(zip_name, "w", zipfile.ZIP_DEFLATED) as z:
-            main_render = open("main.py", encoding="utf-8").read()
-            z.writestr("main.py", main_render)
+            # main.py - Version modifiée avec PORT=10000 pour Render.com
+            main_render_content = open("main.py", "r", encoding="utf-8").read()
+            # Remplacer PORT = 5000 par PORT = int(os.getenv("PORT", 10000))
+            main_render_content = main_render_content.replace(
+                "PORT     = 5000",
+                "PORT     = int(os.getenv('PORT', 10000))"
+            )
+            z.writestr("main.py", main_render_content)
+            
+            # Fichiers Python principaux (sauf main.py déjà traité)
             for f in ["predictor.py", "yaml_manager.py", "card_counter.py", "scheduler.py"]:
-                if os.path.exists(f): z.write(f)
-            for f in ["requirements.txt", "runtime.txt", ".gitignore"]:
-                if os.path.exists(f): z.write(f)
-            z.writestr("render.yaml", open("render.yaml").read())
-            z.writestr(".env.example", """API_ID=your_api_id
+                if os.path.exists(f):
+                    z.write(f)
+            
+            # runtime.txt - IMPORTANT: Python 3.11 pour compatibilité Telethon
+            runtime_content = "python-3.11.10"
+            z.writestr("runtime.txt", runtime_content)
+            
+            # requirements.txt - Versions testées et compatibles
+            requirements_content = """telethon==1.35.0
+aiohttp==3.9.5
+PyYAML==6.0.1
+python-dotenv==1.0.1
+"""
+            z.writestr("requirements.txt", requirements_content)
+            
+            # Fichiers de configuration
+            if os.path.exists(".gitignore"):
+                z.write(".gitignore")
+            
+            # Configuration render.yaml pour Render.com
+            render_yaml = """services:
+  - type: web
+    name: telegram-card-counter-bot
+    env: python
+    runtime: python-3.11.10
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: API_ID
+        sync: false
+      - key: API_HASH
+        sync: false
+      - key: BOT_TOKEN
+        sync: false
+      - key: ADMIN_ID
+        sync: false
+      - key: DISPLAY_CHANNEL
+        sync: false
+"""
+            z.writestr("render.yaml", render_yaml)
+            
+            # Fichier .env.example pour Render.com
+            env_example = """API_ID=your_api_id
 API_HASH=your_api_hash
 BOT_TOKEN=your_bot_token
 ADMIN_ID=your_admin_id
 DISPLAY_CHANNEL=0
 PORT=10000
-""")
-            z.writestr("README_RENDER.md", open("README_RENDER.md").read())
-        await e.respond("📦 Package de2000.zip créé !")
-        await client.send_file(e.chat_id, zip_name, caption="🚀 Package de2000.zip prêt pour Render.com")
-        if os.path.exists(zip_name): os.remove(zip_name)
+"""
+            z.writestr(".env.example", env_example)
+            
+            # README de déploiement Render.com
+            readme = """# Package render10k - Déploiement Render.com (Port 10000)
+
+## ⚠️ IMPORTANT - Version Python
+**Ce bot nécessite Python 3.11.10** pour compatibilité avec Telethon.
+- ❌ Python 3.13+ causera des erreurs asyncio
+- ✅ Python 3.11.10 est préconfiguré dans runtime.txt
+
+## 🚀 Instructions de déploiement sur Render.com:
+
+1. **Créer un compte Render.com**
+   - Aller sur https://render.com
+   - S'inscrire ou se connecter avec GitHub
+
+2. **Créer un nouveau Web Service**
+   - Cliquer sur "New +" → "Web Service"
+   - Connecter votre repository GitHub ou uploader le code
+
+3. **Configuration du service**
+   - **Name**: telegram-card-counter-bot
+   - **Environment**: Python 3
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `python main.py`
+   - **Port**: 10000 (automatique via render.yaml)
+
+4. **Configurer les variables d'environnement**
+   Dans l'onglet "Environment", ajouter:
+   - `API_ID`: Votre Telegram API ID (my.telegram.org)
+   - `API_HASH`: Votre Telegram API Hash
+   - `BOT_TOKEN`: Token du bot (@BotFather)
+   - `ADMIN_ID`: Votre Telegram User ID
+   - `DISPLAY_CHANNEL`: ID du canal d'affichage (optionnel)
+   - `PORT`: 10000 (déjà configuré)
+
+5. **Déployer**
+   - Cliquer sur "Create Web Service"
+   - Le déploiement démarre automatiquement
+   - Vérifier les logs pour confirmer la connexion
+
+## 📋 Caractéristiques render10k:
+✅ **Port 10000**: Configuration Render.com optimisée
+✅ **Base YAML**: Stockage sans PostgreSQL
+✅ **Gestion file d'attente**: Messages ⏰ → ✅/🔰
+✅ **Comptage unique**: Anti-double comptage avec hash SHA256
+✅ **Rapports automatiques**: Intervalle configurable
+✅ **Prédictions**: Système de prédictions de cartes
+✅ **Health Check**: Endpoint /health pour monitoring
+
+## 🔧 Commandes disponibles:
+- `/status` - État complet du système
+- `/set_stat [id]` - Configurer canal source
+- `/set_display [id]` - Configurer canal affichage
+- `/intervalle [min]` - Intervalle rapports (1-120 min)
+- `/bilan` - Rapport immédiat et reset
+- `/reset` - Réinitialiser compteur
+- `/deploy` - Package render_deploy.zip
+- `/dep` - Package de2000.zip (Render.com optimisé)
+
+## 📊 Architecture:
+- **main.py**: Application principale avec port 10000
+- **card_counter.py**: Logique de comptage de cartes
+- **predictor.py**: Système de prédictions
+- **yaml_manager.py**: Gestion données YAML
+- **scheduler.py**: Planification automatique
+- **render.yaml**: Configuration déploiement Render.com
+- **runtime.txt**: Python 3.11.10 (OBLIGATOIRE)
+- **requirements.txt**: Dépendances testées et compatibles
+
+## 🌐 Endpoints:
+- `GET /health`: Health check (retourne "Bot OK")
+- `GET /`: Root endpoint (retourne "Bot OK")
+
+## 🗄️ Stockage YAML:
+- `data/bot_config.yaml`: Configuration persistante
+- `data/predictions.yaml`: Historique prédictions
+- `data/auto_predictions.yaml`: Planification auto
+- `data/message_log.yaml`: Anti-doublon messages
+- `bot_config.json`: Backup configuration
+- `interval.json`: Intervalle rapports
+
+## ⚙️ Fonctionnement:
+1. **Messages en attente (⏰)**: Mis en file d'attente
+2. **Messages édités**: Détection ⏰ → ✅/🔰
+3. **Messages finalisés (✅/🔰)**: Comptage immédiat
+4. **Anti-doublon**: Hash SHA256 + YAML log
+5. **Rapports**: Instantanés + périodiques configurables
+
+## ⚠️ Important:
+- Le dossier `data/` est créé automatiquement
+- Les sessions Telegram sont générées au démarrage
+- Configuration sauvegardée en YAML + JSON
+- Port 10000 OBLIGATOIRE pour Render.com
+- Variables d'environnement via dashboard Render.com
+
+## 🔧 Résolution des problèmes courants:
+
+### Erreur "File .../asyncio/runners.py"
+- ❌ Cause: Python 3.13 incompatible avec Telethon
+- ✅ Solution: runtime.txt contient python-3.11.10
+
+### Build Failed sur Render.com
+- Vérifier que runtime.txt existe et contient python-3.11.10
+- Vérifier que render.yaml spécifie runtime: python-3.11.10
+- S'assurer que toutes les variables d'environnement sont définies
+
+## 🚀 Déploiement rapide:
+```bash
+# 1. Décompresser render10k.zip
+unzip render10k.zip
+
+# 2. Upload sur Render.com ou GitHub
+git init
+git add .
+git commit -m "Initial commit"
+git push origin main
+
+# 3. Connecter sur Render.com et déployer
+# Les variables sont dans .env.example
+```
+
+## 📈 Monitoring:
+- Logs en temps réel dans dashboard Render.com
+- Health check automatique: `https://your-app.onrender.com/health`
+- Console output détaillé avec timestamps
+
+🎯 Package render10k prêt pour déploiement Render.com!
+✅ Python 3.11.10 + Port 10000 + Configuration complète
+"""
+            z.writestr("README_RENDER.md", readme)
+        
+        await e.respond("📦 Package render10k.zip créé avec succès!\n✅ Python 3.11.10 + Port 10000\n✅ Optimisé pour Render.com\n🔧 Tous les fichiers corrigés et prêts au déploiement")
+        await client.send_file(e.chat_id, zip_name, caption="🚀 render10k.zip - Render.com (Python 3.11 + Port 10000)")
+        
+        # Nettoyer le fichier ZIP après envoi
+        if os.path.exists(zip_name):
+            os.remove(zip_name)
+            
     except Exception as ex:
-        await e.respond(f"❌ Erreur création package : {ex}")
+        await e.respond(f"❌ Erreur lors de la création du package: {ex}")
 
 # ---------- MESSAGE HANDLER ----------
 @client.on(events.NewMessage())
 async def handle_new(e):
     if e.chat_id != detected_stat_channel: return
     txt = e.message.message or ""
+    
+    # Messages en attente (⏰) → Mise en file d'attente
     if "⏰" in txt or "🕐" in txt:
         pending_messages[e.message.id] = txt
         print(f"⏰ Message mis en attente (ID: {e.message.id}): {txt[:50]}...")
         return
+    
+    # Messages finalisés (✅ ou 🔰) → Traitement immédiat
     if "✅" in txt or "🔰" in txt:
         await process_finalized_message(txt, e.chat_id)
     else:
@@ -186,22 +372,42 @@ async def handle_new(e):
 async def handle_edited(e):
     if e.chat_id != detected_stat_channel: return
     txt = e.message.message or ""
+    
+    # Vérifier si le message était en attente
     if e.message.id in pending_messages:
+        # Le message a été édité et n'est plus en attente
         if "⏰" not in txt and "🕐" not in txt:
+            # Message finalisé (✅ ou 🔰)
             if "✅" in txt or "🔰" in txt:
+                print(f"✅ Message finalisé (ID: {e.message.id}): {txt[:50]}...")
+                # Retirer de la file d'attente
                 del pending_messages[e.message.id]
+                # Traiter le message finalisé
                 await process_finalized_message(txt, e.chat_id)
             else:
+                # Message édité mais pas finalisé
+                print(f"⚠️ Message édité mais non finalisé (ID: {e.message.id}): {txt[:50]}...")
                 del pending_messages[e.message.id]
         else:
+            # Toujours en attente, mettre à jour le texte
             pending_messages[e.message.id] = txt
+            print(f"⏰ Message en attente mis à jour (ID: {e.message.id})")
 
 async def process_finalized_message(txt: str, chat_id: int):
+    """Traite un message finalisé et compte les cartes"""
+    # Vérifier si le message a déjà été traité (évite double comptage)
     if database.is_message_processed(txt, chat_id):
-        print("⏭️ Message déjà traité, ignoré")
+        print(f"⏭️ Message déjà traité, ignoré")
         return
+
+    # Compter les cartes
     card_counter.add(txt)
+    print(f"🃏 Cartes comptées : {txt[:50]}...")
+
+    # Marquer comme traité
     database.mark_message_processed(txt, chat_id)
+
+    # ===== ENVOI INSTANTANÉ (sans reset) =====
     instant = card_counter.build_report()
     if detected_display_channel:
         try:
@@ -225,20 +431,9 @@ async def create_web():
 
 # ---------- START ----------
 async def main():
-    global client
-    if not (API_ID and API_HASH and BOT_TOKEN):
-        raise RuntimeError(
-            "API_ID / API_HASH / BOT_TOKEN manquants – "
-            "vérifiez les variables d'environnement Render"
-        )
     load_config()
     load_interval()
     await create_web()
-    client = TelegramClient(
-        session=f"bot_session_{int(time.time())}",
-        api_id=API_ID,
-        api_hash=API_HASH
-    )
     await client.start(bot_token=BOT_TOKEN)
     restart_auto_bilan()
     me = await client.get_me()
@@ -246,4 +441,5 @@ async def main():
     await client.run_until_disconnected()
 
 if __name__ == "__main__":
+    import asyncio
     asyncio.run(main())

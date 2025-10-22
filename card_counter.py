@@ -12,11 +12,26 @@ class CardCounter:
     def normalize(self, s: str) -> str:
         return s if s.endswith("️") else s + "️"
 
-    # ---- comptage : 1 par SYMBOLE (sans doublon) ----
+    # ---- comptage : 1 par SYMBOLE unique (sans doublon) ----
     def count_symbols(self, group: str) -> Dict[str, int]:
         counts = {s: 0 for s in ("♠️", "♥️", "♦️", "♣️")}
+        
+        # Parcourir chaque symbole et compter UNE SEULE fois chaque occurrence
+        seen_positions = set()
         for sym in self.SYMBOLS:
-            counts[self.normalize(sym)] += group.count(sym)
+            normalized = self.normalize(sym)
+            # Chercher toutes les positions du symbole
+            start = 0
+            while True:
+                pos = group.find(sym, start)
+                if pos == -1:
+                    break
+                # Vérifier si cette position n'a pas déjà été comptée
+                if pos not in seen_positions:
+                    counts[normalized] += 1
+                    seen_positions.add(pos)
+                start = pos + 1
+        
         return counts
 
     def add(self, text: str) -> None:
@@ -42,4 +57,7 @@ class CardCounter:
         msg = self.build_report().replace("📈 Compteur instantané", "📊 Bilan cumulé (cartes)")
         self._TOTAL = {s: 0 for s in ("♠️", "♥️", "♦️", "♣️")}
         return msg
+
+    def reset(self) -> None:
+        self._TOTAL = {s: 0 for s in ("♠️", "♥️", "♦️", "♣️")}
         

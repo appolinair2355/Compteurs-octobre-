@@ -138,6 +138,10 @@ async def handle(e):
     txt = e.message.message or ""
     if "✅" in txt or "🔰" in txt:
         card_counter.add(txt)
+        # ===== ENVOI INSTANTANÉ (sans reset) =====
+        instant = card_counter.build_report()
+        if detected_display_channel:
+            await client.send_message(detected_display_channel, instant)
 
 # ---------- WEB SERVER ----------
 async def health(request): return web.Response(text="Bot OK")
@@ -166,4 +170,3 @@ async def main():
 if __name__ == "__main__":
     import asyncio
     asyncio.run(main())
-              

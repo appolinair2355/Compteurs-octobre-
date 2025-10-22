@@ -25,14 +25,20 @@ class CardCounter:
         for s, c in counts.items():
             self._TOTAL[s] += c
 
-    def report_and_reset(self) -> str:
+    # ---- rapport SANS reset (instantané) ----
+    def build_report(self) -> str:
         total = sum(self._TOTAL.values())
         if total == 0:
-            return "📊 Aucune carte cumulée pour le moment."
-        lines = ["📊 Bilan cumulé (cartes)"]
+            return "📈 Compteur instantané\nAucune carte pour le moment."
+        lines = ["📈 Compteur instantané"]
         for s in ("♠️", "♥️", "♦️", "♣️"):
             pct = self._TOTAL[s] * 100 / total
             lines.append(f"{s} : {self._TOTAL[s]}  ({pct:.1f} %)")
-        self._TOTAL = {s: 0 for s in ("♠️", "♥️", "♦️", "♣️")}
         return "\n".join(lines)
-                  
+
+    # ---- bilan + reset (intervalle) ----
+    def report_and_reset(self) -> str:
+        msg = self.build_report().replace("📈 Compteur instantané", "📊 Bilan cumulé (cartes)")
+        self._TOTAL = {s: 0 for s in ("♠️", "♥️", "♦️", "♣️")}
+        return msg
+            

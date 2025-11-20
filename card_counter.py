@@ -2,44 +2,55 @@ import re
 from typing import Dict
 
 class CardCounter:
-    SYMBOLS = ("♠️", "♥️", "♦️", "♣️", "♠", "♥", "♦", "♣")
-    _TOTAL = {s: 0 for s in ("♠️", "♥️", "♦️", "♣️")}
+    # On ne garde que les clés principales normalisées ici
+    # Les variantes textes sont gérées dans la logique de comptage
+    SYMBOLS_KEYS = ("♠️", "♥️", "♦️", "♣️")
+    
+    def __init__(self):
+        self._TOTAL = {s: 0 for s in self.SYMBOLS_KEYS}
 
     def extract_first_group(self, text: str) -> str:
         """Extrait UNIQUEMENT le 1er groupe entre parenthèses"""
         groups = re.findall(r"\(([^)]*)\)", text)
         return groups[0] if len(groups) >= 1 else ""
 
-    def normalize(self, s: str) -> str:
-        return s if s.endswith("️") else s + "️"
-
-    # ---- comptage : 1 par SYMBOLE unique (sans doublon) ----
     def count_symbols(self, group: str) -> Dict[str, int]:
-        counts = {s: 0 for s in ("♠️", "♥️", "♦️", "♣️")}
-        
-        # Parcourir chaque symbole et compter UNE SEULE fois chaque occurrence
-        seen_positions = set()
-        for sym in self.SYMBOLS:
-            normalized = self.normalize(sym)
-            # Chercher toutes les positions du symbole
-            start = 0
-            while True:
-                pos = group.find(sym, start)
-                if pos == -1:
-                    break
-                # Vérifier si cette position n'a pas déjà été comptée
-                if pos not in seen_positions:
-                    counts[normalized] += 1
-                    seen_positions.add(pos)
-                start = pos + 1
-        
+        """
+        Compte les symboles de manière séquentielle pour éviter les doublons.
+        Priorité aux émojis, puis au texte simple.
+        """
+        counts = {s: 0 for s in self.SYMBOLS_KEYS}
+        temp_group = group  # Copie de travail
+
+        # 1. D'abord compter les Émojis complets (ex: ♠️)
+        # On utilise une liste explicite pour l'ordre de traitement
+        emojis = ["♠️", "♥️", "♦️", "♣️"]
+        for emoji in emojis:
+            count = temp_group.count(emoji)
+            counts[emoji] += count
+            # IMPORTANT: On retire l'émoji trouvé pour qu'il ne soit pas 
+            # recompté comme symbole texte simple ensuite
+            if count > 0:
+                temp_group = temp_group.replace(emoji, "")
+
+        # 2. Ensuite compter les symboles texte restants (ex: ♠)
+        # Mapping du symbole texte vers la clé émoji
+        text_variants = {"♠": "♠️", "♥": "♥️", "♦": "♦️", "♣": "♣️"}
+        for text_char, target_key in text_variants.items():
+            count = temp_group.count(text_char)
+            if count > 0:
+                counts[target_key] += count
+
         return counts
 
     def add(self, text: str) -> None:
         """Compte les symboles du 1er groupe uniquement"""
         first_group = self.extract_first_group(text)
         if not first_group: return
+        
+        # Utiliser la nouvelle logique de comptage sécurisée
         counts = self.count_symbols(first_group)
+        
         for s, c in counts.items():
             self._TOTAL[s] += c
 
@@ -51,7 +62,7 @@ class CardCounter:
         
         lines = ["📈 Compteur instantané"]
         
-        for s in ("♠️", "♥️", "♦️", "♣️"):
+        for s in self.SYMBOLS_KEYS:
             count = self._TOTAL[s]
             pct = count * 100 / total
             lines.append(f"{s} : {count}  ({pct:.1f} %)")
@@ -62,7 +73,8 @@ class CardCounter:
     def report_and_reset(self) -> str:
         total = sum(self._TOTAL.values())
         if total == 0:
-            self._TOTAL = {s: 0 for s in ("♠️", "♥️", "♦️", "♣️")}
+            # Reset même si vide pour garder la cohérence
+            self._TOTAL = {s: 0 for s in self.SYMBOLS_KEYS}
             return "╔════════════════════╗\n📊 Bilan 📊\n╚════════════════════╝\n\n🔍 Aucune carte comptabilisée"
         
         lines = [
@@ -80,7 +92,7 @@ class CardCounter:
             "♣️": {"name": "TRÈFLE", "emoji": "🟩", "color": "💚"}
         }
         
-        for s in ("♠️", "♥️", "♦️", "♣️"):
+        for s in self.SYMBOLS_KEYS:
             count = self._TOTAL[s]
             pct = count * 100 / total
             data = symbols_data[s]
@@ -99,9 +111,9 @@ class CardCounter:
         lines.append(f"📌 Total: {total} carte{'s' if total > 1 else ''}")
         lines.append("━━━━━━━━━━━━━━━━━━━━")
         
-        self._TOTAL = {s: 0 for s in ("♠️", "♥️", "♦️", "♣️")}
+        # Reset après le rapport
+        self._TOTAL = {s: 0 for s in self.SYMBOLS_KEYS}
         return "\n".join(lines)
 
     def reset(self) -> None:
-        self._TOTAL = {s: 0 for s in ("♠️", "♥️", "♦️", "♣️")}
-        
+        self._TOTAL = {s: 0 for s in self.SYMBOLS_KEYS}
